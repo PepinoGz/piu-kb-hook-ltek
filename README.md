@@ -1,8 +1,8 @@
-# Pump It Up Keyboard Hook
+# Pump It Up Keyboard and Ltek usb pad Hook
 
-Tool that allows you to use your keyboard on Pump It Up.
+Tool that allows you to use your keyboard on Pump It Up and also Ltek Dance mat PIU EX PRO Metal 2
 
-Tested on Pump It Up Prime. To modify the keys, edit the `binds` list in `hook.cpp`.
+Tested on NX2, NXA, Fiesta 1, Fiesta 2 y Fiesta EX. It should work with Pump It Up Prime/Prime2. To modify the keys, edit the `binds` list in `hook.cpp`.
 
 # Usage
 Download the pre-compiled binary or compile it, then add it to LD_PRELOAD before executing Prime.
@@ -27,7 +27,7 @@ To compile it yourself, run these commands:
 ```
 sudo apt-get install git build-essential libx11-dev
 git clone https://github.com/therathatter/piu-kb-hook
-cd piu-kb-hook
+cd piu-kb-hook-ltek
 make
 ```
 
