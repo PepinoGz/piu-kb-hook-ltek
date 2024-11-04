@@ -1,14 +1,17 @@
-
 #include <iostream>
 #include <dlfcn.h>
 #include <cstdlib>
 #include <linux/input.h>
+#include <linux/joystick.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <list>
+#include <thread>
 #include "structs.h"
 
-const uint16_t VENDOR  = 0x0547;
+const uint16_t VENDOR = 0x0547;
 const uint16_t PRODUCT = 0x1002;
 
 const uint8_t STATE_CAB_PLAYER_1 = 1;
@@ -26,7 +29,7 @@ const uint8_t CAB_SERVICE = 0x40;
 const uint8_t CAB_TEST = 0x02;
 const uint8_t CAB_COIN = 0x04;
 
-uint8_t IOSTATE[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
+uint8_t IOSTATE[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 
 struct piu_bind {
     const char* key;
@@ -34,27 +37,75 @@ struct piu_bind {
     uint8_t bit;
 };
 
+struct ltekpad_mapping {
+    int button;
+    const char* key;
+    uint8_t state;
+    uint8_t bit;
+};
+
 const std::list<piu_bind> binds = {
-    { "q",  STATE_PLAYER_1, PAD_LU },
-    { "e",  STATE_PLAYER_1, PAD_RU },
-    { "s",  STATE_PLAYER_1, PAD_CN },
-    { "z",  STATE_PLAYER_1, PAD_LD },
-    { "c",  STATE_PLAYER_1, PAD_RD },
-    { "F5", STATE_CAB_PLAYER_1, CAB_COIN },
+    {"q", STATE_PLAYER_1, PAD_LU},
+    {"e", STATE_PLAYER_1, PAD_RU},
+    {"s", STATE_PLAYER_1, PAD_CN},
+    {"z", STATE_PLAYER_1, PAD_LD},
+    {"c", STATE_PLAYER_1, PAD_RD},
+    {"F5", STATE_CAB_PLAYER_1, CAB_COIN},
 
-    { "KP_7",  STATE_PLAYER_2, PAD_LU },
-    { "KP_9",  STATE_PLAYER_2, PAD_RU },
-    { "KP_5",  STATE_PLAYER_2, PAD_CN },
-    { "KP_1",  STATE_PLAYER_2, PAD_LD },
-    { "KP_3",  STATE_PLAYER_2, PAD_RD },
-    { "F6",    STATE_CAB_PLAYER_2, CAB_COIN },
+    {"KP_7", STATE_PLAYER_2, PAD_LU},
+    {"KP_9", STATE_PLAYER_2, PAD_RU},
+    {"KP_5", STATE_PLAYER_2, PAD_CN},
+    {"KP_1", STATE_PLAYER_2, PAD_LD},
+    {"KP_3", STATE_PLAYER_2, PAD_RD},
+    {"F6", STATE_CAB_PLAYER_2, CAB_COIN},
 
-    { "F1", STATE_CAB_PLAYER_1, CAB_TEST },
-    { "F2", STATE_CAB_PLAYER_1, CAB_SERVICE },
+    {"F1", STATE_CAB_PLAYER_1, CAB_TEST},
+    {"F2", STATE_CAB_PLAYER_1, CAB_SERVICE},
+};
+
+const std::list<ltekpad_mapping> ltek_binds = {
+    {0, "q", STATE_PLAYER_1, PAD_LU},  // Ltek button LEFT UP
+    {1, "e", STATE_PLAYER_1, PAD_RU},  // Ltek button RIGHT UP
+    {4, "s", STATE_PLAYER_1, PAD_CN},  // Ltek button CENTER
+    {2, "z", STATE_PLAYER_1, PAD_LD},  // Ltek button LEFT DOWN
+    {3, "c", STATE_PLAYER_1, PAD_RD}   // Ltek button RIGHT DOWN
 };
 
 bool is_real_pad_connected = false;
 bool was_emulated_device_added = false;
+
+void handle_ltekpad() {
+    int ltek_fd = open("/dev/input/js0", O_RDONLY);
+    if (ltek_fd == -1) {
+        std::cerr << "Can't open ltekPad" << std::endl;
+        return;
+    }
+
+    struct js_event event;
+    while (true) {
+        if (read(ltek_fd, &event, sizeof(event)) == sizeof(event)) {
+            if (event.type == JS_EVENT_BUTTON) {
+                for (const auto& mapping : ltek_binds) {
+                    if (event.number == mapping.button) {
+                        if (event.value) {
+                            // button pressed
+                            IOSTATE[mapping.state] &= ~mapping.bit;
+                        } else {
+                            // button not pressed
+                            IOSTATE[mapping.state] |= mapping.bit;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    close(ltek_fd);
+}
+
+void __attribute__((constructor)) init_ltekpad() {
+    std::thread ltek_thread(handle_ltekpad);
+    ltek_thread.detach();
+}
 
 void add_emulated_device() {
     if (!usb_busses) {
@@ -96,7 +147,6 @@ extern "C" usb_dev_handle* usb_open(usb_device* dev) {
 
     return ret;
 }
-
 
 extern "C" int usb_claim_interface(usb_dev_handle *dev, int interface) {
     static auto o_usb_claim_interface = reinterpret_cast<decltype(&usb_claim_interface)>(dlsym(RTLD_NEXT, "usb_claim_interface"));
