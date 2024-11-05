@@ -2,7 +2,7 @@
 
 Tool that allows you to use your keyboard on Pump It Up and also Ltek Dance mat PIU EX PRO Metal 2
 
-Tested on NX2, NXA, Fiesta 1, Fiesta 2 y Fiesta EX. It should work with Pump It Up Prime/Prime2. To modify the keys, edit the `binds` list in `hook.cpp`.
+Tested on NX2, NXA, Fiesta 1, Fiesta 2, Fiesta EX, Prime 1 and Prime2. To modify the keys, edit the `binds` list in `hook.cpp`.
 
 # Usage
 Download the pre-compiled binary or compile it, then add it to LD_PRELOAD before executing Prime.
